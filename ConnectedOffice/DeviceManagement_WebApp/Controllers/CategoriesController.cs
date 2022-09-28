@@ -7,22 +7,24 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using DeviceManagement_WebApp.Data;
 using DeviceManagement_WebApp.Models;
+using DeviceManagement_WebApp.Repositories;
+using System.Threading.Tasks;
 
 namespace DeviceManagement_WebApp.Controllers
 {
     public class CategoriesController : Controller
     {
-        private readonly ConnectedOfficeContext _context;
+        private readonly ICategoryRepository _repository;
 
-        public CategoriesController(ConnectedOfficeContext context)
+        public CategoriesController(ICategoryRepository categoryRepository)
         {
-            _context = context;
+            _repository = categoryRepository;
         }
 
         // GET: Categories
         public async Task<IActionResult> Index()
         {
-            return View(await _context.Category.ToListAsync());
+            return View(_repository.GetAll());
         }
 
         // GET: Categories/Details/5
@@ -32,9 +34,7 @@ namespace DeviceManagement_WebApp.Controllers
             {
                 return NotFound();
             }
-
-            var category = await _context.Category
-                .FirstOrDefaultAsync(m => m.CategoryId == id);
+            var category = _repository.GetById(id);
             if (category == null)
             {
                 return NotFound();
@@ -57,8 +57,7 @@ namespace DeviceManagement_WebApp.Controllers
         public async Task<IActionResult> Create([Bind("CategoryId,CategoryName,CategoryDescription,DateCreated")] Category category)
         {
             category.CategoryId = Guid.NewGuid();
-            _context.Add(category);
-            await _context.SaveChangesAsync();
+            _repository.Update(category);
             return RedirectToAction(nameof(Index));
         }
 
@@ -70,7 +69,8 @@ namespace DeviceManagement_WebApp.Controllers
                 return NotFound();
             }
 
-            var category = await _context.Category.FindAsync(id);
+            var category = _repository.Find(e => e.CategoryId == id);
+            
             if (category == null)
             {
                 return NotFound();
@@ -91,8 +91,7 @@ namespace DeviceManagement_WebApp.Controllers
             }
             try
             {
-                _context.Update(category);
-                await _context.SaveChangesAsync();
+                _repository.Add(category);
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -116,8 +115,9 @@ namespace DeviceManagement_WebApp.Controllers
                 return NotFound();
             }
 
-            var category = await _context.Category
-                .FirstOrDefaultAsync(m => m.CategoryId == id);
+            var category = _repository.GetById(id);
+            _repository.Remove(category);
+
             if (category == null)
             {
                 return NotFound();
@@ -131,15 +131,15 @@ namespace DeviceManagement_WebApp.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(Guid id)
         {
-            var category = await _context.Category.FindAsync(id);
-            _context.Category.Remove(category);
-            await _context.SaveChangesAsync();
+            var category = _repository.Find(e => e.CategoryId == id);
+            _repository.Remove((Category)category);
+
             return RedirectToAction(nameof(Index));
         }
 
         private bool CategoryExists(Guid id)
         {
-            return _context.Category.Any(e => e.CategoryId == id);
+            return _repository.Exists(id);
         }
     }
 }
